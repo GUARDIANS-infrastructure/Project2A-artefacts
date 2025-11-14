@@ -1,3 +1,18 @@
+## Introduction
+
+These are draft user stories for the human omics research data infrastructure under development as part of the GUARDIANS Program at NCI. They reflect both work that NCI is already engaged in, and the ambitions of the project team and users for the feature set and functionality of the system to be delivered. Important caveats:
+
+* This is absolutely not an exhaustive list, and is not in order of importance.
+
+* There are varying levels of granularity here. Some are epic-level system stories. Some are nearly feature-level user stories. 
+
+* This is a living document to be updated as more discovery comes to light.
+
+* We’ve taken a maximalist interpretation of the concept of ‘user’: as someone that interacts with the system in some capacity. Importantly, this includes the design, development, and operation of systems as well as ‘consumer-level’ interactions.
+
+---
+
+## User Stories  
 
 
 | ID | Requirement type | Category | As a \[Persona\] | I want | so that | Value/Priority |
