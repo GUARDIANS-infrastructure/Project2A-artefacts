@@ -17,7 +17,7 @@ These are draft user stories for the human omics research data infrastructure un
 
 | ID | Requirement type | Category | As a \[Persona\] | I want | so that | Value/Priority |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| US1 | Policy and Functional | Trust and Identity, Group Management | Researcher | to self register and login to a data commons such as Gen3 | I can browse for data that may be suitable for my study | High \- Essential |
+| [US1](use_case_diagrams/NCI%20Self%20Registration%20User%20Story%201%20Use%20Case%20Diagram.pdf) | Policy and Functional | Trust and Identity, Group Management | Researcher | to self register and login to a data commons such as Gen3 | I can browse for data that may be suitable for my study | High \- Essential |
 | US2 | Functional | Data Transfer Methods | Data Owner | to use the Data Ingestion Portal submit datasets/cohorts to NCI as a long-term addition to the NCI GUARDIANS archive for later data sharing, using the data ingestion portal | data submission is facilitated and metadata standards are enforced. | High \- Essential |
 | US3 | Functional | Workflows | Researcher | to browse a catalog of pre-installed genomic workflows that cover common analysis use cases, then select and run those relevant to my data and requirements | my data can be appropriately processed and I can derive maximum value from NCI's GUARDIANS data archive. | High \- Essential |
 | US4 | Documentation | Workflows | Researcher | access to documentation on how to use the workflows | I can be informed, accelerate my process and select and run the workflows on my data correctly. | High \- Essential |
