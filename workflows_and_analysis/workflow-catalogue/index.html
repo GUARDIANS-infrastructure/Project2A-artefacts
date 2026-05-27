@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Catalogue</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1a202c;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 20px 40px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1.1em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #4a5568;
+        }
+
+        .search-panel {
+            margin-bottom: 24px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 10px;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .search-input {
+            flex: 1;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 1em;
+            color: #2d3748;
+            background: white;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+        }
+
+        .search-button {
+            border: 1px solid #4299e1;
+            background: #4299e1;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .search-button:hover {
+            background: #3182ce;
+            border-color: #3182ce;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #9b2c2c;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #fc8181;
+        }
+
+        .workflows {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .workflow-item {
+            padding: 25px;
+            border-bottom: 1px solid #e2e8f0;
+            transition: background-color 0.2s;
+        }
+
+        .workflow-item:hover {
+            background: #f7fafc;
+        }
+
+        .workflow-item:last-child {
+            border-bottom: none;
+        }
+
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .workflow-name {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .workflow-version {
+            background: #4299e1;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .workflow-description {
+            color: #4a5568;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .workflow-link {
+            color: #4299e1;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .workflow-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .workflow-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .workflow-item {
+                padding: 20px;
+            }
+
+            .search-form {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧬 Workflow Catalogue</h1>
+            <p class="subtitle">Catalogue of bioinformatics workflows (Nextflow-based) deployed on NCI Gadi</p>
+        </header>
+
+        <div class="search-panel">
+            <form id="search-form" class="search-form">
+                <input id="search-input" class="search-input" type="text" placeholder="Search workflows..."/>
+                <button type="submit" class="search-button">Search</button>
+            </form>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading catalogue...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="results" style="display: none;">
+            <div class="workflows" id="workflows"></div>
+        </div>
+    </div>
+
+    <script>
+        const SEARCH_API_BASE_URL = 'https://search.api.globus.org/v1/index/9fb98c75-d345-47ca-8cdd-7a32d31cd12c/search';
+        const MAX_WORKFLOWS = 10000;
+
+        let workflowData = [];
+        let groupedWorkflowData = [];
+
+        function buildSearchUrl(query) {
+            const url = new URL(SEARCH_API_BASE_URL);
+            const normalizedQuery = typeof query === 'string' && query.trim() ? query.trim() : '*';
+            url.searchParams.set('q', normalizedQuery);
+            url.searchParams.set('limit', MAX_WORKFLOWS);
+            return url.toString();
+        }
+
+        async function loadWorkflows(query = '*') {
+            showLoading(true);
+            clearError();
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                const response = await fetch(buildSearchUrl(query));
+                if (!response.ok) {
+                    throw new Error(`Search API request failed (${response.status})`);
+                }
+
+                const payload = await response.json();
+                workflowData = extractWorkflows(payload);
+
+                if (workflowData.length === 0) {
+                    showError('No workflows found.');
+                    return;
+                }
+
+                displayWorkflows();
+            } catch (error) {
+                showError(`Error loading workflows: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function extractWorkflows(payload) {
+            const results = [];
+            const gmeta = Array.isArray(payload && payload.gmeta) ? payload.gmeta : [];
+
+            gmeta.forEach(item => {
+                const entries = Array.isArray(item && item.entries) ? item.entries : [];
+
+                entries.forEach(entry => {
+                    const content = entry && entry.content ? entry.content : {};
+                    const name = (typeof content.name === 'string' && content.name.trim())
+                        ? content.name.trim()
+                        : '';
+
+                    const version = (typeof content.version === 'string' && content.version.trim())
+                        ? content.version.trim()
+                        : '';
+
+                    if (!name || !version) {
+                        return;
+                    }
+
+                    results.push({
+                        name,
+                        version,
+                        description: (typeof content.description === 'string' && content.description.trim())
+                            ? content.description.trim()
+                            : 'No description available',
+                        code_repository: typeof content.code_repository === 'string' ? content.code_repository : ''
+                    });
+                });
+            });
+
+            return results;
+        }
+
+        function compareVersions(versionA, versionB) {
+            const partsA = versionA.split('.').map(part => parseInt(part, 10) || 0);
+            const partsB = versionB.split('.').map(part => parseInt(part, 10) || 0);
+            const maxLength = Math.max(partsA.length, partsB.length);
+
+            for (let i = 0; i < maxLength; i++) {
+                const valueA = partsA[i] || 0;
+                const valueB = partsB[i] || 0;
+                if (valueA !== valueB) {
+                    return valueB - valueA;
+                }
+            }
+
+            return 0;
+        }
+
+        function updateWorkflowCard(groupIndex, selectedVersion) {
+            const group = groupedWorkflowData[groupIndex];
+            if (!group) return;
+
+            const selectedWorkflow = group.versions.find(version => version.version === selectedVersion) || group.versions[0];
+            if (!selectedWorkflow) return;
+
+            const descriptionEl = document.getElementById(`workflow-description-${groupIndex}`);
+            const docsLinkEl = document.getElementById(`workflow-doc-link-${groupIndex}`);
+            const repoLinkEl = document.getElementById(`workflow-repo-link-${groupIndex}`);
+
+            if (descriptionEl) {
+                descriptionEl.textContent = selectedWorkflow.description;
+            }
+
+            if (docsLinkEl) {
+                docsLinkEl.href = `view_documentation.html?name=${encodeURIComponent(selectedWorkflow.name)}&version=${encodeURIComponent(selectedWorkflow.version)}`;
+            }
+
+            if (repoLinkEl) {
+                if (selectedWorkflow.code_repository) {
+                    repoLinkEl.href = selectedWorkflow.code_repository;
+                    repoLinkEl.style.display = 'inline-flex';
+                } else {
+                    repoLinkEl.removeAttribute('href');
+                    repoLinkEl.style.display = 'none';
+                }
+            }
+        }
+
+        function displayWorkflows() {
+            const resultsDiv = document.getElementById('results');
+            const workflowsDiv = document.getElementById('workflows');
+
+            // Group workflows by name
+            const groupedMap = {};
+            for (const workflow of workflowData) {
+                (groupedMap[workflow.name] ??= []).push(workflow);
+            }
+            
+            groupedWorkflowData = Object.entries(groupedMap)
+                .map(([name, versions]) => ({
+                    name,
+                    versions: versions.sort((a, b) => compareVersions(a.version, b.version))
+                }))
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            // Generate workflow list
+            workflowsDiv.innerHTML = groupedWorkflowData.map((group, groupIndex) => {
+                const selectedWorkflow = group.versions[0];
+
+                return `
+                <div class="workflow-item">
+                    <div class="workflow-header">
+                        <div class="workflow-name">${group.name}</div>
+                        ${group.versions.length > 1 ? `
+                            <select class="workflow-version" data-group-index="${groupIndex}">
+                                ${group.versions.map(version => `
+                                    <option value="${version.version}">${version.version}</option>
+                                `).join('')}
+                            </select>
+                        ` : `
+                            <div class="workflow-version">${selectedWorkflow.version}</div>
+                        `}
+                    </div>
+                    <div class="workflow-description" id="workflow-description-${groupIndex}">${selectedWorkflow.description}</div>
+                    <div style="display: flex; gap: 15px; margin-top: 15px;">
+                        <a id="workflow-doc-link-${groupIndex}" href="view_documentation.html?name=${encodeURIComponent(selectedWorkflow.name)}&version=${encodeURIComponent(selectedWorkflow.version)}" class="workflow-link"  target="_blank">
+                            📖 View Documentation
+                        </a>
+                        <a id="workflow-repo-link-${groupIndex}" href="${selectedWorkflow.code_repository}" class="workflow-link" target="_blank">
+                            🔗 View Repository
+                        </a>
+                    </div>
+                </div>
+            `;
+            }).join('');
+
+            workflowsDiv.querySelectorAll('select[data-group-index]').forEach(selectEl => {
+                selectEl.addEventListener('change', event => {
+                    const groupIndex = parseInt(event.target.dataset.groupIndex, 10);
+                    updateWorkflowCard(groupIndex, event.target.value);
+                });
+            });
+
+            resultsDiv.style.display = 'block';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function clearError() {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = '';
+            errorDiv.style.display = 'none';
+        }
+
+        // Auto-load workflows when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchForm = document.getElementById('search-form');
+            const searchInput = document.getElementById('search-input');
+
+            searchForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                loadWorkflows(searchInput.value);
+            });
+
+            loadWorkflows(searchInput.value);
+        });
+    </script>
+</body>
+</html>

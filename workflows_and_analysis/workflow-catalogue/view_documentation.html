@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1a202c;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .back-link {
+            color: #4299e1;
+            text-decoration: none;
+            font-weight: 500;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .documentation {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #4a5568;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #9b2c2c;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #fc8181;
+        }
+
+        /* Markdown styles */
+        .documentation h1, .documentation h2, .documentation h3, .documentation h4, .documentation h5, .documentation h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .documentation h1 { font-size: 2em; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3em; }
+        .documentation h2 { font-size: 1.5em; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3em; }
+        .documentation h3 { font-size: 1.25em; }
+        .documentation h4 { font-size: 1em; }
+        .documentation h5 { font-size: 0.875em; }
+        .documentation h6 { font-size: 0.85em; }
+
+        .documentation p {
+            margin-bottom: 16px;
+        }
+
+        .documentation code {
+            background: #f6f8fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 85%;
+        }
+
+        .documentation pre {
+            background: #f6f8fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow: auto;
+            margin-bottom: 16px;
+        }
+
+        .documentation pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .documentation ul, .documentation ol {
+            margin-bottom: 16px;
+            padding-left: 30px;
+        }
+
+        .documentation li {
+            margin-bottom: 4px;
+        }
+
+        .documentation blockquote {
+            margin: 16px 0;
+            padding: 0 16px;
+            border-left: 4px solid #dfe2e5;
+            color: #6a737d;
+        }
+
+        .documentation table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .documentation th, .documentation td {
+            border: 1px solid #dfe2e5;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .documentation th {
+            background: #f6f8fa;
+            font-weight: 600;
+        }
+
+        /* prevent PLUGIN_IDs appearing as mailto links */
+        a[href^="mailto:"] {
+            text-decoration: none;
+            color: inherit;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .documentation {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading documentation...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="documentation" class="documentation" style="display: none;"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script>
+        const SEARCH_API_BASE_URL = 'https://search.api.globus.org/v1/index/9fb98c75-d345-47ca-8cdd-7a32d31cd12c/search';
+
+        async function loadDocumentation() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const workflowName = urlParams.get('name');
+            const workflowVersion = urlParams.get('version');
+
+            if (!workflowName || !workflowVersion) {
+                showError('Missing workflow name or version parameters.');
+                return;
+            }
+            
+            // Set the document title
+            document.title = `${workflowName} v${workflowVersion} - Documentation`;
+
+            try {
+                showLoading(true);
+                clearError();
+
+                const requestBody = {
+                    filters: [
+                        {
+                            type: 'match_any',
+                            field_name: 'name',
+                            values: [workflowName]
+                        },
+                        {
+                            type: 'match_any',
+                            field_name: 'version',
+                            values: [workflowVersion]
+                        }
+                    ]
+                };
+
+                const response = await fetch(SEARCH_API_BASE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Search API request failed (${response.status})`);
+                }
+
+                const payload = await response.json();
+                const entryContent = payload?.gmeta?.[0]?.entries?.[0]?.content;
+                if (!entryContent) {
+                    throw new Error(`No documentation metadata found for ${workflowName} v${workflowVersion}`);
+                }
+
+                if (!entryContent.documentation_base64) {
+                    throw new Error(`documentation_base64 is missing for ${workflowName} v${workflowVersion}`);
+                }
+
+                const markdownContent = decodeBase64Utf8(entryContent.documentation_base64);
+                const htmlContent = marked.parse(markdownContent);
+                
+                const docDiv = document.getElementById('documentation');
+                docDiv.innerHTML = htmlContent;
+                docDiv.style.display = 'block';
+
+            } catch (error) {
+                showError(`Failed to load documentation: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function decodeBase64Utf8(base64Value) {
+            const binary = atob(base64Value);
+            const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+            return new TextDecoder('utf-8').decode(bytes);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function clearError() {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = '';
+            errorDiv.style.display = 'none';
+        }
+
+        // Load documentation when page loads
+        document.addEventListener('DOMContentLoaded', loadDocumentation);
+    </script>
+</body>
+</html>
